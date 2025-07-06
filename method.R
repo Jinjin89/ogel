@@ -1,0 +1,1 @@
+# write based method here, forexample, PCA, harmony, umap etc. the method in this script should be genral. all the other functionality will call this method
