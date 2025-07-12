@@ -1,18 +1,18 @@
 # set plot functions here
-sc$set('public', 'plot_dim', function(group_by = self$celltype,label=T,label_insitu=T, reduction = "umap",palette = "seurat", theme = "theme_blank", ...,data_use = 'data') {
+ogel$set('public', 'plot_dim', function(group_by = self$celltype,label=T,label_insitu=T, reduction = "umap",palette = "seurat", theme = "theme_blank", ...,data_use = 'data') {
   #DimPlot(self[[data_use]], ...)
   CellDimPlot(self[[data_use]], group_by = group_by, reduction = reduction,theme = theme,label=label,label_insitu=label_insitu,...)
 })
 
-sc$set('public','plot_features', function(features,order=T,label=T,...,data_use = 'data') {
+ogel$set('public','plot_features', function(features,order=T,label=T,...,data_use = 'data') {
   FeaturePlot(self[[data_use]],features = features,order = order,label=label,...)
 })
 
-sc$set('public','plot_vln',function(...,data_use = 'data'){
+ogel$set('public','plot_vln',function(...,data_use = 'data'){
   Seurat::VlnPlot(self[[data_use]],pt.size = 0,...)
 })
 
-sc$set('public','plot_dot',function(features,reverse=F,size_range = c(0,6),group_by = self$celltype,features_df=NULL,group_df=NULL,data_use = 'data') {
+ogel$set('public','plot_dot',function(features,reverse=F,size_range = c(0,6),group_by = self$celltype,features_df=NULL,group_df=NULL,data_use = 'data') {
   p_data <- self$get_features_expr_df(features=features,group_by = group_by,features_df=features_df,group_df=group_df,data_use = data_use)
   if(reverse){
     p <- 
@@ -34,6 +34,6 @@ sc$set('public','plot_dot',function(features,reverse=F,size_range = c(0,6),group
     labs(fill = 'Scaled expression',size = "Percent expressed")
 })
 
-sc$set('public','plot_feature_density',function(features,data_use = 'data',...) {
+ogel$set('public','plot_feature_density',function(features,data_use = 'data',...) {
   Nebulosa::plot_density(self[[data_use]], features,...)
 })

@@ -1,4 +1,4 @@
-sc$set('public','diff_wilcoxauc',function(group_by,...,force=F,results_name = NULL,return_df=F,data_use = 'data'){
+ogel$set('public','diff_wilcoxauc',function(group_by,..., assay_use='RNA',force=F,results_name = NULL,return_df=F,data_use = 'data'){
   if(!'wilcoxauc' %in% names(self$analysis)){
     self$analysis$wilcoxauc <- list()
   }
@@ -10,6 +10,7 @@ sc$set('public','diff_wilcoxauc',function(group_by,...,force=F,results_name = NU
     message('runing wilcoxauc for: ',group_by)
     df <- presto::wilcoxauc(
       self[[data_use]],
+      seurat_assay = assay_use,
       ...,
       group_by = group_by)  %>% 
       dplyr::mutate(pct_change = pct_in - pct_out) %>% 
@@ -28,7 +29,7 @@ sc$set('public','diff_wilcoxauc',function(group_by,...,force=F,results_name = NU
   
 })
 
-sc$set('public','diff_plot_volcano',function(results_name,group_show,logFC_cutoff = 0.25, pval_cutoff = 0.05, 
+ogel$set('public','diff_plot_volcano',function(results_name,group_show,logFC_cutoff = 0.25, pval_cutoff = 0.05, 
                                       top_n = 8, feature_include = NULL,
                                       direction = c("both", "y", "x"), label_size = 3,
                                       maxup_add = 1, maxlower_add = 1){
@@ -108,7 +109,7 @@ sc$set('public','diff_plot_volcano',function(results_name,group_show,logFC_cutof
   return(p)
 })
 
-sc$set('public','diff_plotheatmap',function(results_name,group_by,group_show,..., logFC_cutoff = 0.25, pval_cutoff = 0.05,
+ogel$set('public','diff_plotheatmap',function(results_name,group_by,group_show,..., logFC_cutoff = 0.25, pval_cutoff = 0.05,
                                        downsample = NULL, top_n = 8, feature_include = NULL, 
                                        plot_genes = 50, data_use = 'data'){
   message('heatmap plot from wilcoxauc for: ', results_name)
@@ -238,7 +239,7 @@ sc$set('public','diff_plotheatmap',function(results_name,group_by,group_show,...
 
 
 # enrich step
-sc$set('public','diff_enrich_gsea',function(results_name,group_show,db_name,logFC = 'logFC',feature = 'feature',pvalueCutoff = 1,return_enrich = F,force = F){
+ogel$set('public','diff_enrich_gsea',function(results_name,group_show,db_name,logFC = 'logFC',feature = 'feature',pvalueCutoff = 1,return_enrich = F,force = F){
   stopifnot(db_name %in% names(self$db))
   db <- self$db[[db_name]]
   if(!'enrich' %in% names(self$analysis)){
@@ -276,7 +277,7 @@ sc$set('public','diff_enrich_gsea',function(results_name,group_show,db_name,logF
     }
 })
 
-sc$set('public','diff_enrich_gsea_patch',function(results_name,group_show,db_names = c('go','kegg','hallmark'),logFC = 'logFC',feature = 'feature',pvalueCutoff = 1,force = F){
+ogel$set('public','diff_enrich_gsea_patch',function(results_name,group_show,db_names = c('go','kegg','hallmark'),logFC = 'logFC',feature = 'feature',pvalueCutoff = 1,force = F){
   stopifnot(all(db_names %in% names(self$db)))
     if(!'enrich' %in% names(self$analysis)){
     self$analysis$enrich <- list()

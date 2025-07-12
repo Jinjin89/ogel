@@ -1,5 +1,5 @@
 # multiome preprocessing
-sc$set('public','multi_preprocess',function(
+ogel$set('public','multi_preprocess',function(
     RNA_assay = 'RNA', ATAC_assay = 'peaks',
     force_rna = FALSE, force_atac = FALSE,
     regress_vars = c('percent.mt'), min_cutoff = 5, 
@@ -15,7 +15,7 @@ sc$set('public','multi_preprocess',function(
 })
 
 # RNA preprocessing
-sc$set('public','multi_preprocess_rna',function(
+ogel$set('public','multi_preprocess_rna',function(
     RNA_assay = 'RNA',
     regress_vars = c('percent.mt'),
     conserve_memory = TRUE,
@@ -55,7 +55,7 @@ sc$set('public','multi_preprocess_rna',function(
 
 
 # ATAC preprocessing
-sc$set('public','multi_preprocess_atac',function(
+ogel$set('public','multi_preprocess_atac',function(
     ATAC_assay = 'peaks',
     min_cutoff = 5,
     force = FALSE,
@@ -90,7 +90,7 @@ sc$set('public','multi_preprocess_atac',function(
 })
 
 # Harmony batch correction
-sc$set('public','multi_harmony',function(batch_var = 'sample', RNA_assay = 'SCT', 
+ogel$set('public','multi_harmony',function(batch_var = 'sample', RNA_assay = 'SCT', 
                                          force_lsi = FALSE,force_pca = FALSE,
                                          ATAC_assay = 'peaks', data_use = 'data'){
   
@@ -137,7 +137,7 @@ sc$set('public','multi_harmony',function(batch_var = 'sample', RNA_assay = 'SCT'
   invisible(self)
 })
 
-sc$set('public','multi_integration',function(rna_dims = 1:30, atac_dims = 2:30, 
+ogel$set('public','multi_integration',function(rna_dims = 1:30, atac_dims = 2:30, 
                                              RNA_assay = 'SCT', reduction.name = 'umap_merge', 
                                              resolution = 0.8,
                                              data_use = 'data'){
@@ -182,7 +182,7 @@ sc$set('public','multi_integration',function(rna_dims = 1:30, atac_dims = 2:30,
   invisible(self)
 })
 
-sc$set('public','multi_pipeline',function(RNA_assay = 'RNA', ATAC_assay = 'peaks',
+ogel$set('public','multi_pipeline',function(RNA_assay = 'RNA', ATAC_assay = 'peaks',
                                           force_rna = FALSE, force_atac = FALSE,
                                           force_lsi = FALSE, force_pca = FALSE,
                                           rna_dims = 1:30, atac_dims = 2:30, 
@@ -211,7 +211,7 @@ sc$set('public','multi_pipeline',function(RNA_assay = 'RNA', ATAC_assay = 'peaks
   invisible(self)
 })
 
-sc$set('public','multi_macs2',function(...,atac_assay = 'peaks',cleanup=FALSE,macs2.path = '/opt/conda/envs/macs2/bin/macs3', data_use = 'data'){
+ogel$set('public','multi_macs2',function(...,atac_assay = 'peaks',cleanup=FALSE,macs2.path = '/opt/conda/envs/macs2/bin/macs3', data_use = 'data'){
   message("*   Running MACS2 peak calling")
   
   # Get the data object

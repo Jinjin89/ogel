@@ -1,4 +1,4 @@
-sc$set('public', 'subset', function(values = NULL, key = self$celltype,create_dir = F,drop_metadata_levels=T,tag='tmp') {
+ogel$set('public', 'subset', function(values = NULL, key = self$celltype,create_dir = F,drop_metadata_levels=T,tag='tmp') {
 
   stopifnot(!is.null(tag))
   if (is.null(values)) {
@@ -28,8 +28,8 @@ sc$set('public', 'subset', function(values = NULL, key = self$celltype,create_di
   invisible(result)
 })
 
-sc$set('public','subset_inplace',function(data_name,values = NULL,key = self$celltype,empty_analysis = T,tag = NULL){
-  stopifnot(data_name != 'data')
+ogel$set('public','subset_inplace',function(data_name,values = NULL,key = self$celltype,empty_analysis = T,tag = NULL){
+  stopifnot(data_name == 'data')
   idx <- self$data@meta.data[[key]] %in% values
   stopifnot(sum(idx) > 0)
   self$data <- self$data[, idx]
@@ -42,7 +42,7 @@ sc$set('public','subset_inplace',function(data_name,values = NULL,key = self$cel
   invisible(self)
 })
 
-sc$set('public','add_moduleScore',function(sig_list,...,data_use = 'data'){
+ogel$set('public','add_moduleScore',function(sig_list,...,data_use = 'data'){
   for(i in seq_along(sig_list)){
     current_names <- names(sig_list)[i]
     message(current_names)
@@ -61,7 +61,7 @@ sc$set('public','add_moduleScore',function(sig_list,...,data_use = 'data'){
 })
 
 # get feature expression data
-sc$set('public','get_features_expr_df',function(features,group_by = self$celltype,features_df=NULL,group_df=NULL,data_use = 'data'){
+ogel$set('public','get_features_expr_df',function(features,group_by = self$celltype,features_df=NULL,group_df=NULL,data_use = 'data'){
   stopifnot(is.null(features_df) || all(features %in% rownames(features_df))) # make sure feature
   p <- DotPlot(self[[data_use]],features = features,group.by = group_by)
   p_data <- 
@@ -94,7 +94,7 @@ sc$set('public','get_features_expr_df',function(features,group_by = self$celltyp
 })
 
 
-sc$set('public','get_expr2meta',function(features,assay = "RNA",inplace=F,data_use = 'data'){ 
+ogel$set('public','get_expr2meta',function(features,assay = "RNA",inplace=F,data_use = 'data'){ 
   obj <- self$get_data(data_use)
   assay <- Seurat::GetAssayData(obj,assay = assay)[features,,drop=F]
   if(inplace){
@@ -113,7 +113,7 @@ sc$set('public','get_expr2meta',function(features,assay = "RNA",inplace=F,data_u
 
 })
 
-sc$set('public','get_uniq',function(feature,data_use = 'data'){
+ogel$set('public','get_uniq',function(feature,data_use = 'data'){
   if(feature %in% colnames(self$data@meta.data)){
     stopifnot(!is.numeric(self$data@meta.data[[feature]]))
     return(sort(unique(self$data@meta.data[[feature]])))

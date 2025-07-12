@@ -1,7 +1,7 @@
 library(R6)
 
-sc <- R6Class(
-  'sc',
+ogel <- R6Class(
+  'ogel',
   active = list(
     path = function(value){
       if(missing(value)){
@@ -28,6 +28,7 @@ sc <- R6Class(
     group = NULL,
     threads = NULL,
     res_folder = NULL,
+    verbose = TRUE,
     analysis = list(),
     dl = list(),
     params = list(),
@@ -35,7 +36,7 @@ sc <- R6Class(
     funs = list(),
 
     # Initialize method with celltype and group arguments
-    initialize = function(workspace, tag,data=NULL,celltype = NULL, group = NULL, threads = 16) {
+    initialize = function(workspace, tag,data=NULL,celltype = NULL, group = NULL, threads = 16,verbose = TRUE) {
       suppressMessages({
         library(future)
         library(future.apply)
@@ -55,12 +56,13 @@ sc <- R6Class(
       self$celltype <- celltype
       self$group <- group
       self$threads <- threads
+      self$verbose <- verbose
       self$res_folder <- NULL
 
       # params
       self$params <- list(
-        qds = file.path(self$path,'data.qds'),
-        analysis = file.path(self$path,'analysis.qds'),
+        qs = file.path(self$path,'data.qs'),
+        analysis = file.path(self$path,'analysis.qs'),
         analysis_folder = file.path(self$path,'analysis'),
         print_size = TRUE
       )
@@ -83,10 +85,14 @@ sc <- R6Class(
     
     # Utility methods
     print = function() {
-      cat("sc object:\n")
-      cat("  Cell type:", self$celltype %||% "Not specified", "\n")
-      cat("  Group:", self$group %||% "Not specified", "\n")
+      cat("ogel object:\n")
       if (!is.null(self$data)) {
+        cat("  path:",self$path,"\n")
+        cat("  tag:",self$tag,"\n")
+        cell_type <- ifelse(is.null(self$celltype),"Not supplied",self$celltype)
+        group <- ifelse(is.null(self$group),"Not supplied",self$group)
+        cat("  celltype:",cell_type,"\n")
+        cat("  group:",group,"\n")
         cat("  Assays:", paste(names(self$data@assays), collapse = ", "), "\n")
         cat("  Active assay:", self$data@active.assay, "\n")
         cat("  Reductions:", paste(names(self$data@reductions), collapse = ", "), "\n")
@@ -108,32 +114,30 @@ sc <- R6Class(
   )
 )
 
-# Helper function for NULL handling
-`%||%` <- function(x, y) if (is.null(x)) y else x
 
 # general function
-sc$set('public','get_metadata',function(data_use = 'data'){
+ogel$set('public','get_metadata',function(data_use = 'data'){
   return(self$get_data(data_use)@meta.data)
 })
 
 
 
-sc$set('public','set_data',function(data,data_use = 'data',data_new =NULL){
+ogel$set('public','set_data',function(data,data_use = 'data',data_new =NULL){
   stopifnot(data_use == 'data')
   self$data <- data
   invisible(data)
 })
 
-sc$set('public','get_data',function(data_use = 'data'){
+ogel$set('public','get_data',function(data_use = 'data'){
   stopifnot(data_use == 'data')
   self[[data_use]]
 })
 
-sc$set('public','sep_line',function(){
+ogel$set('public','sep_line',function(){
   cat('----------------------------------------\n')
 })
 
-sc$set('public','set_parallel',function(n_cores = self$threads,size = 500){
+ogel$set('public','set_parallel',function(n_cores = self$threads,size = 500){
   plan(sequential)
   if(Sys.getenv('RSTUDIO') == '1'){
     cat("using multisession\n")
@@ -146,13 +150,13 @@ sc$set('public','set_parallel',function(n_cores = self$threads,size = 500){
   options(future.globals.maxSize= size*1024^3)
   invisible(self)
 })
-sc$set('public','set_sequential',function(){
+ogel$set('public','set_sequential',function(){
   plan(sequential)
   invisible(self)
 })
 
 # size info 
-sc$set("public","get_size",function(name = NULL){
+ogel$set("public","get_size",function(name = NULL){
   if(is.null(name)){
     format(object.size(self),units = 'auto')
   }else{
@@ -160,11 +164,11 @@ sc$set("public","get_size",function(name = NULL){
   }
 })
 
-sc$set("public","get_analysis_size",function(){
+ogel$set("public","get_analysis_size",function(){
     self$get_size('analysis')
 })
 
-sc$set("public","get_data_size",function(){
+ogel$set("public","get_data_size",function(){
     self$get_size('data')
 })
 
@@ -174,10 +178,13 @@ source('method.R')
 source('pp.R')
 source('plot.R')
 source('data.R')
-source('multiome.R')
 source('diff.R')
 source('IO.R')
 source('db.R')
+
+# wrapper function
+source('multiome.R')
+source("RNA.R")
 
 
 len <- function(...){

@@ -1,5 +1,5 @@
 
-sc$set('public','stat_metadata_counts',function(
+ogel$set('public','stat_metadata_counts',function(
     by,celltype = self$celltype,
     by_remove = NULL, celltype_remove = NULL,
     by_features = NULL,celltype_features=NULL,
@@ -96,7 +96,7 @@ sc$set('public','stat_metadata_counts',function(
 })
 
 
-sc$set('public','plot_stat_metadata_counts',\(
+ogel$set('public','plot_stat_metadata_counts',\(
   res,
   col = c( '#2166ac','#67a9cf','#d1e5f0','#fddbc7', '#ef8a62', '#b2182b'),
   right_annotation = NULL,
