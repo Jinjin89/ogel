@@ -172,20 +172,6 @@ ogel$set("public","get_data_size",function(){
     self$get_size('data')
 })
 
-# preprocess method
-source('analysis.R')
-source('method.R')
-source('pp.R')
-source('plot.R')
-source('data.R')
-source('diff.R')
-source('IO.R')
-source('db.R')
-
-# wrapper function
-source('multiome.R')
-source("RNA.R")
-
 
 len <- function(...){
   length(...)
