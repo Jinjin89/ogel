@@ -3,18 +3,12 @@
 # load/save using base load/save method for: data, analysis, dl
 # write methods for params
 ogel$set('public','load_data',function(load_analysis=F,data_use = 'data'){
-  stopifnot(is.null(self$get_data(data_use)))
-  
-  cat("loading data from: ",self$params$qs,'\n')
-  dta <-  qs::qread(self$params$qs,nthreads = self$threads)
+  data_file <- file.path(self$path,self$params$data_name)
+  cat("loading data from: ",data_file,'\n')
+  dta <-.load_data_from_file(file_name = data_file,nthreads = self$threads)
   self$set_data(dta,data_use = data_use)
   if(load_analysis){
-    cat("loading analysis list from: ",self$params$analysis,'\n')
-    if(!file.exists(self$params$analysis)){
-      message("analysis.qs not found, skip loading analysis list")
-    }else{
-      self$analysis <- qs::qread(self$params$analysis,nthreads = self$threads)
-    }
+    self$load_analysis()
   }
   rm(dta);gc()
   invisible(self)
@@ -22,26 +16,25 @@ ogel$set('public','load_data',function(load_analysis=F,data_use = 'data'){
 
 ogel$set('public','save_data',function(save_anlaysis=F,force=F,data_use = 'data'){
   stopifnot(!is.null(self$get_data(data_use)))
-  cat("saving data using : ",data_use,' slot into: ',self$params$qs,'\n')
-  if(force || !file.exists(self$params$qs)){
-    self$get_data(data_use) %>% qs::qsave(self$params$qs,nthreads = self$threads)
+  data_file <- file.path(self$path,self$params$data_name)
+ if(force || !file.exists(data_file)){
+    cat("saving data using : ",data_use,' slot into: ',data_file,'\n')
+    self$get_data(data_use) %>% .save_data_to_file(data_file,nthreads = self$threads)
+  }else{
+    cat("File found, skip saving data\n")
   }
   if(save_anlaysis){
-    if(length(self$analysis) > 0){
-      cat("saving analysis list into: ",self$params$analysis,'\n')
-      qs::qsave(self$analysis,self$params$analysis,nthreads = self$threads)
-    }else{
-      message("analysis list is empty, skip saving analysis list")
-    }
+    self$load_analysis()
   }
   invisible(self)
 })
 
 ogel$set('public','save_analysis',function(force=F){
-  if(!file.exists(self$params$analysis) || force){
+  analysis_file <- file.path(self$path,'analysis',self$params$analysis_name)
+  if(force || !file.exists(self$params$analysis)){
     if(length(self$analysis) > 0 && !is.null(self$params$analysis)){
-      cat("saving analysis list into: ",self$params$analysis,'\n')
-      self$analysis %>%qs::qsave(self$params$analysis,nthreads = self$threads)
+      cat("saving analysis list into: ",analysis_file,'\n')
+      self$analysis %>% .save_data_to_file(analysis_file,nthreads = self$threads)
     }else{
       message("analysis list is empty, skip saving analysis list")
     }
@@ -50,9 +43,10 @@ ogel$set('public','save_analysis',function(force=F){
 })
 
 ogel$set('public','load_analysis',function(){
-  if(file.exists(self$params$analysis)){
+  analysis_file <- file.path(self$path,'analysis',self$params$analysis_name)
+  if(file.exists(analysis_file)){
     if(length(self$analysis) == 0){
-      self$analysis <- qs::qread(self$params$analysis,nthreads = self$threads)
+      self$analysis <- .load_data_from_file(analysis_file,nthreads = self$threads)
     }else{
       message("analysis list is not empty, skip loading analysis list")
     }
@@ -63,17 +57,6 @@ ogel$set('public','load_analysis',function(){
 })
 
 
-
-# data
-ogel$set("public","load_rds_qs",function(file_name){
-  if(stringr::str_detect(file_name,stringr::regex("\\.rds$",ignore_case=TRUE))){
-    invisible(base::readRDS(file_name))
-  }else if(stringr::str_detect(file_name,stringr::regex("\\.qs$",ignore_case=TRUE))){
-    invisible(qs::qread(file_name))
-  }else{
-    stop(paste0("file: ",file_name," is not a valid rds or qs file"))
-  }
-})
 
 ogel$set("public","load_dl",function(file_name,dl_name=NULL,path = self$path){
   if(is.null(dl_name)) dl_name <- stringr::str_remove(file_name,"\\.rds|\\.qs$")
@@ -89,7 +72,7 @@ ogel$set("public","load_dl",function(file_name,dl_name=NULL,path = self$path){
     }
   }
   invisible(self)
-
+  
 })
 
 

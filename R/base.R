@@ -6,6 +6,7 @@ ogel <- R6Class(
     path = function(value){
       if(missing(value)){
         path <- file.path(self$workspace,self$tag)
+        if(!dir.exists(path)) dir.create(path,recursive = T)
         path
       }else{
         stop('Can not set path, it is build using self$workspace and self$tag')
@@ -27,14 +28,13 @@ ogel <- R6Class(
     celltype = NULL,
     group = NULL,
     threads = NULL,
-    res_folder = NULL,
     verbose = TRUE,
     analysis = list(),
     dl = list(),
     params = list(),
     db = list(),
     funs = list(),
-
+    
     # Initialize method with celltype and group arguments
     initialize = function(workspace, tag,data=NULL,celltype = NULL, group = NULL, threads = 16,verbose = TRUE) {
       suppressMessages({
@@ -57,22 +57,22 @@ ogel <- R6Class(
       self$group <- group
       self$threads <- threads
       self$verbose <- verbose
-      self$res_folder <- NULL
-
+      
       # params
       self$params <- list(
-        qs = file.path(self$path,'data.qs'),
-        analysis = file.path(self$path,'analysis.qs'),
-        analysis_folder = file.path(self$path,'analysis'),
+        data_name = 'data.qs',
+        analysis_name = 'analysis.qs',
+        res_folder <- NULL,
         print_size = TRUE
       )
       if(!dir.exists(self$path)) {
         message("creating folder: ",self$path)
         dir.create(self$path, recursive = TRUE)
       }
-      if(!dir.exists(self$params$analysis_folder)){
-        message("creating folder: ",self$params$analysis_folder)
-        dir.create(self$params$analysis_folder, recursive = TRUE)
+      analysis_folder <- file.path(self$path,'analysis')
+      if(!dir.exists(analysis_folder)){
+        message("creating folder: ",analysis_folder)
+        dir.create(analysis_folder, recursive = TRUE)
       }
       if(!is.null(self$res_folder)){
         if(!dir.exists(self$res_folder)){
@@ -165,11 +165,11 @@ ogel$set("public","get_size",function(name = NULL){
 })
 
 ogel$set("public","get_analysis_size",function(){
-    self$get_size('analysis')
+  self$get_size('analysis')
 })
 
 ogel$set("public","get_data_size",function(){
-    self$get_size('data')
+  self$get_size('data')
 })
 
 
@@ -182,4 +182,24 @@ sifn <- \(logical,...){
     stop(paste(...))
   }
   invisible(T)
+}
+
+.load_data_from_file <- \(file_name,nthreads = 1,...){
+  if(stringr::str_detect(file_name,stringr::regex("\\.rds$",ignore_case=TRUE))){
+    invisible(base::readRDS(file_name))
+  }else if(stringr::str_detect(file_name,stringr::regex("\\.qs$",ignore_case=TRUE))){
+    invisible(qs::qread(file_name))
+  }else{
+    stop(paste0("file: ",file_name," is not a valid rds or qs file"))
+  }
+}
+
+.save_data_to_file <- \(data,file_name,nthreads = 1,...){
+  if(stringr::str_detect(file_name,stringr::regex("\\.rds$",ignore_case=TRUE))){
+    base::saveRDS(data,file_name)
+  }else if(stringr::str_detect(file_name,stringr::regex("\\.qs$",ignore_case=TRUE))){
+    qs::qsave(data,file_name,nthreads = nthreads)
+  }else{
+    stop(paste0("file: ",file_name," is not a valid rds or qs file"))
+  }
 }

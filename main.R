@@ -1,10 +1,9 @@
 # preprocess method
 source('R/base.R')
-source('R/util.R')
+source('R/utils.R')
 source('R/method.R')
 
 source('R/analysis.R')
-source('R/pp.R')
 source('R/plot.R')
 source('R/data.R')
 source('R/diff.R')
