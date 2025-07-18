@@ -133,9 +133,6 @@ ogel$set('public','get_data',function(data_use = 'data'){
   self[[data_use]]
 })
 
-ogel$set('public','sep_line',function(){
-  cat('----------------------------------------\n')
-})
 
 ogel$set('public','set_parallel',function(n_cores = self$threads,size = 500){
   plan(sequential)

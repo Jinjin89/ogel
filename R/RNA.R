@@ -39,7 +39,7 @@ ogel$set('public', 'RNA_pipeline', function(
     n_start = 10,
     n_iter = 10,
     group_singletons = TRUE,
-    cluster_name = 'seurat_clusters',
+    cluster_name = 'clusters',
     
     # UMAP parameters
     umap_reduction = 'harmony',

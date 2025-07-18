@@ -24,28 +24,34 @@ ogel$set('public','save_data',function(save_anlaysis=F,force=F,data_use = 'data'
     cat("File found, skip saving data\n")
   }
   if(save_anlaysis){
-    self$load_analysis()
+    self$save_analysis(force = force)
   }
   invisible(self)
 })
 
 ogel$set('public','save_analysis',function(force=F){
   analysis_file <- file.path(self$path,'analysis',self$params$analysis_name)
-  if(force || !file.exists(self$params$analysis)){
-    if(length(self$analysis) > 0 && !is.null(self$params$analysis)){
+  if(force || !file.exists(analysis_file)){
+    if(length(self$analysis) > 0 && !is.null(analysis_file)){
       cat("saving analysis list into: ",analysis_file,'\n')
+      if(!dir.exists(file.path(self$path,'analysis'))){
+        dir.create(file.path(self$path,'analysis'),recursive = T)
+      }
       self$analysis %>% .save_data_to_file(analysis_file,nthreads = self$threads)
     }else{
       message("analysis list is empty, skip saving analysis list")
     }
+  }else{
+    cat("analysis results found, skip save data!")
   }
   invisible(self)
 })
 
-ogel$set('public','load_analysis',function(){
+ogel$set('public','load_analysis',function(force = F){
   analysis_file <- file.path(self$path,'analysis',self$params$analysis_name)
   if(file.exists(analysis_file)){
-    if(length(self$analysis) == 0){
+    if(force || length(self$analysis) == 0){
+      cat("loading analysis results")
       self$analysis <- .load_data_from_file(analysis_file,nthreads = self$threads)
     }else{
       message("analysis list is not empty, skip loading analysis list")
@@ -55,7 +61,6 @@ ogel$set('public','load_analysis',function(){
   }
   invisible(self)
 })
-
 
 
 ogel$set("public","load_dl",function(file_name,dl_name=NULL,path = self$path){

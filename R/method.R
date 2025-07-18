@@ -245,8 +245,7 @@ ogel$set('public', 'find_clusters', function(
         )
         all_cls_labels <- as.integer(obj@meta.data[[cluster_name]])
         cls_levels <- paste0('C',sort(unique(all_cls_labels)))
-        obj@meta.data[[cluster_name]] <- paste0("C",all_cls_labels)
-        levels(obj@meta.data[[cluster_name]]) <- cls_levels
+        obj@meta.data[[cluster_name]] <- factor(paste0("C",all_cls_labels),levels = cls_levels)
     }
     self$set_data(obj, data_use)
     rm(obj); gc()

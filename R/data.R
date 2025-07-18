@@ -1,4 +1,4 @@
-ogel$set('public', 'subset', function(values = NULL, key = self$celltype,create_dir = F,drop_metadata_levels=T,tag='tmp') {
+ogel$set('public', 'subset', function(values = NULL, key = self$celltype,tag='tmp',create_dir = F,drop_metadata_levels=T) {
 
   stopifnot(!is.null(tag))
   if (is.null(values)) {
@@ -21,9 +21,9 @@ ogel$set('public', 'subset', function(values = NULL, key = self$celltype,create_
       }
     }
   }
-  if(create_dir && !dir.exists(self$path)){
-    message("creating folder: ",self$path)
-    dir.create(self$path,recursive = T)
+  if(create_dir && !dir.exists(result$path)){
+    message("creating folder: ",result$path)
+    dir.create(result$path,recursive = T)
   }
   invisible(result)
 })
