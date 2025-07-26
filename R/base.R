@@ -2,6 +2,10 @@ library(R6)
 
 ogel <- R6Class(
   'ogel',
+  private = list(
+    R_DIR = this.path::this.dir(),
+    DB_DIR = file.path(dirname(this.path::this.dir()),"db")
+  ),
   active = list(
     path = function(value){
       if(missing(value)){
@@ -29,6 +33,7 @@ ogel <- R6Class(
     group = NULL,
     threads = NULL,
     verbose = TRUE,
+    res_folder = NULL,
     analysis = list(),
     dl = list(),
     params = list(),
@@ -62,7 +67,7 @@ ogel <- R6Class(
       self$params <- list(
         data_name = 'data.qs',
         analysis_name = 'analysis.qs',
-        res_folder <- NULL,
+        res_folder = NULL,
         print_size = TRUE
       )
       if(!dir.exists(self$path)) {
@@ -80,6 +85,7 @@ ogel <- R6Class(
           dir.create(self$res_folder, recursive = TRUE)
         }
       }
+      # set private args
       invisible(self)
     },
     
@@ -109,6 +115,9 @@ ogel <- R6Class(
         cat("  data size:",self$get_data_size(),"\n")
         cat("  analysis size:",self$get_analysis_size(),"\n")
       }
+      cat("  R_DIR:",private$R_DIR,"\n")
+      cat("  DB_DIR:",private$DB_DIR,"\n")
+      
       invisible(self)
     }
   )
@@ -129,8 +138,17 @@ ogel$set('public','set_data',function(data,data_use = 'data',data_new =NULL){
 })
 
 ogel$set('public','get_data',function(data_use = 'data'){
-  stopifnot(data_use == 'data')
-  self[[data_use]]
+  if(is.character(data_use)){
+    if(data_use == 'data'){
+      return(self$data)
+    }else{
+      stop('data_use is not a valid data_use')
+    }
+  }else{
+    cat('data_use is not a character, returning it directly\n')
+    return(data_use)
+  }
+
 })
 
 
@@ -185,7 +203,7 @@ sifn <- \(logical,...){
   if(stringr::str_detect(file_name,stringr::regex("\\.rds$",ignore_case=TRUE))){
     invisible(base::readRDS(file_name))
   }else if(stringr::str_detect(file_name,stringr::regex("\\.qs$",ignore_case=TRUE))){
-    invisible(qs::qread(file_name))
+    invisible(qs::qread(file_name,nthreads = nthreads))
   }else{
     stop(paste0("file: ",file_name," is not a valid rds or qs file"))
   }

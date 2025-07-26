@@ -1,4 +1,7 @@
-ogel$set('public','load_db',function(db_folder='~/script/R6/db/',data_use = 'data'){
+ogel$set('public','load_db',function(db_folder=NULL,data_use = 'data'){
+  if(is.null(db_folder)){
+    db_folder <- private$DB_DIR
+  }
   all_files <- list.files(db_folder,pattern = '*.rds',full.names = T)
   cat('found [',paste0(basename(all_files),collapse = ','),'] databases from ',db_folder,'\n')
   for(each_file in all_files){

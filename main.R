@@ -2,6 +2,7 @@
 source('R/base.R')
 source('R/utils.R')
 source('R/method.R')
+source("R/trajectory.R")
 
 source('R/analysis.R')
 source('R/plot.R')
