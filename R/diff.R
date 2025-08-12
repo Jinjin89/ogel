@@ -30,7 +30,7 @@ ogel$set('public','diff_wilcoxauc',function(group_by,..., assay_use='RNA',force=
   
 })
 
-ogel$set('public','diff_plot_volcano',function(results_name,group_show,logFC_cutoff = 0.25, pval_cutoff = 0.05, 
+ogel$set('public','diff_plot_volcano',function(results_name,group_show,feature_col = 'feature',logFC_cutoff = 0.25, pval_cutoff = 0.05, 
                                                top_n = 8, feature_include = NULL,
                                                direction = c("both", "y", "x"), label_size = 3,
                                                maxup_add = 1, maxlower_add = 1){
@@ -68,12 +68,15 @@ ogel$set('public','diff_plot_volcano',function(results_name,group_show,logFC_cut
     dplyr::filter(p_sig == "Up") %>% 
     dplyr::arrange(dplyr::desc(abs(logFC))) %>% 
     dplyr::mutate(i = 1:dplyr::n()) %>% 
-    dplyr::mutate(labels = ifelse(i <= top_n | feature %in% feature_include, feature, NA))
+    dplyr::mutate(feature = .[[feature_col]]) %>%
+    dplyr::mutate(labels = ifelse(i <= top_n | feature %in% feature_include, feature, NA)) 
+    
   
   markers_down <- input_degs %>% 
     dplyr::filter(p_sig == "Down") %>% 
     dplyr::arrange(dplyr::desc(abs(logFC))) %>% 
     dplyr::mutate(i = 1:dplyr::n()) %>% 
+    dplyr::mutate(feature = .[[feature_col]]) %>%
     dplyr::mutate(labels = ifelse(i <= top_n | feature %in% feature_include, feature, NA))
   
   # Create volcano plot

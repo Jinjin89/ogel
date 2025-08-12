@@ -34,6 +34,7 @@ ogel <- R6Class(
     threads = NULL,
     verbose = TRUE,
     res_folder = NULL,
+    log_file = NULL,
     analysis = list(),
     dl = list(),
     params = list(),
@@ -41,7 +42,7 @@ ogel <- R6Class(
     funs = list(),
     
     # Initialize method with celltype and group arguments
-    initialize = function(workspace, tag,data=NULL,celltype = NULL, group = NULL, threads = 16,verbose = TRUE) {
+    initialize = function(workspace, tag,data=NULL,celltype = NULL, group = NULL, threads = 16,verbose = TRUE, log_file = NULL) {
       suppressMessages({
         library(future)
         library(future.apply)
@@ -62,6 +63,19 @@ ogel <- R6Class(
       self$group <- group
       self$threads <- threads
       self$verbose <- verbose
+      
+      # Handle log_file path
+      if (!is.null(log_file)) {
+        if (dirname(log_file) == ".") {
+          # If it's just a filename, put it in workspace/tag directory
+          self$log_file <- file.path(workspace, tag, log_file)
+        } else {
+          # If it's a path, use as is
+          self$log_file <- log_file
+        }
+      } else {
+        self$log_file <- NULL
+      }
       
       # params
       self$params <- list(
@@ -123,6 +137,66 @@ ogel <- R6Class(
   )
 )
 
+
+# Logging function
+ogel$set('public','say',function(message, prefix = "*   "){
+  full_message <- paste0(prefix, message)
+  
+  # Always print to console
+  cat(full_message, "\n")
+  
+  # Also write to log file if specified
+  if(!is.null(self$log_file)){
+    # Add timestamp for log file
+    timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+    log_entry <- paste0("[", timestamp, "] ", full_message, "\n")
+    
+    # Write to log file
+    cat(log_entry, file = self$log_file, append = TRUE)
+  }
+  
+  invisible(self)
+})
+
+# Announcement/Header function
+ogel$set('public','announce',function(message, sep_char = "=", sep_length = 60){
+  # Create separator line
+  separator <- paste(rep(sep_char, sep_length), collapse = "")
+  
+  # Get timestamp
+  timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+  time_line <- paste0("TIME: ", timestamp)
+  
+  # Center align the text
+  center_text <- function(text, width) {
+    text_length <- nchar(text)
+    if (text_length >= width) return(text)
+    
+    padding <- width - text_length
+    left_pad <- floor(padding / 2)
+    right_pad <- ceiling(padding / 2)
+    
+    paste0(paste(rep(" ", left_pad), collapse = ""), text, paste(rep(" ", right_pad), collapse = ""))
+  }
+  
+  # Center align both lines
+  centered_message <- center_text(message, sep_length)
+  centered_time <- center_text(time_line, sep_length)
+  
+  # Print to console
+  cat("\n", separator, "\n", sep = "")
+  cat(centered_message, "\n")
+  cat(centered_time, "\n")
+  cat(separator, "\n\n", sep = "")
+  
+  # Also write to log file if specified
+  if(!is.null(self$log_file)){
+    log_entry <- paste0("\n", separator, "\n", centered_message, "\n", centered_time, "\n", separator, "\n\n")
+    cat(log_entry, file = self$log_file, append = TRUE)
+  }
+  
+  invisible(self)
+})
 
 # general function
 ogel$set('public','get_metadata',function(data_use = 'data'){

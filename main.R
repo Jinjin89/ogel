@@ -8,6 +8,7 @@ source('R/analysis.R')
 source('R/plot.R')
 source('R/data.R')
 source('R/diff.R')
+source('R/cnv.R')
 source('R/IO.R')
 
 # data-related args
