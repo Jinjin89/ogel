@@ -7,7 +7,7 @@ ogel$set('public','sep_line',function(){
   cat('----------------------------------------\n')
 })
 
-ogel$set('public','add_wartermarker',function(imgpath,text="百奥智汇",color="#696969",out_path=NULL,fig_type="png"){
+ogel$set('public','add_watermarker',function(imgpath,text="百奥智汇",color="#696969",out_path=NULL,fig_type="png"){
   if(is.null(out_path)) {
     out_path <- self$watermark_dir
   }
@@ -221,10 +221,10 @@ ogel$set('public','save_fig',function(fig, file_path, width = 5, height = 5, dpi
     pdf_path <- paste0(full_path, ".pdf")
     
     if(file.exists(png_path)) {
-      self$add_wartermarker(png_path)
+      self$add_watermarker(png_path)
     }
     if(file.exists(pdf_path)) {
-      self$add_wartermarker(pdf_path)
+      self$add_watermarker(pdf_path)
     }
     
     self$say("Auto watermarking completed")

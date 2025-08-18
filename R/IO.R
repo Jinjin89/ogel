@@ -14,7 +14,7 @@ ogel$set('public','load_data',function(load_analysis=F,data_use = 'data'){
   invisible(self)
 })
 
-ogel$set('public','save_data',function(save_anlaysis=F,force=F,data_use = 'data'){
+ogel$set('public','save_data',function(save_analysis=F,force=F,data_use = 'data'){
   stopifnot(!is.null(self$get_data(data_use)))
   data_file <- file.path(self$path,self$params$data_name)
  if(force || !file.exists(data_file)){
@@ -23,7 +23,7 @@ ogel$set('public','save_data',function(save_anlaysis=F,force=F,data_use = 'data'
   }else{
     cat("File found, skip saving data\n")
   }
-  if(save_anlaysis){
+  if(save_analysis){
     self$save_analysis(force = force)
   }
   invisible(self)
@@ -70,7 +70,7 @@ ogel$set("public","load_dl",function(file_name,dl_name=NULL,path = self$path){
     message("dl already loaded,skipping")
   }else{
     if(file.exists(file.path(path,file_name))){
-      self$dl[[dl_name]] <- self$load_rds_qs(file.path(path,file_name))
+      self$dl[[dl_name]] <- .load_data_from_file(file.path(path,file_name), nthreads = self$threads)
       cat('data type: ',class(self$dl[[dl_name]]),'\n')
     }else{
       stop(paste0("file: ",file.path(path,file_name)," not found"))

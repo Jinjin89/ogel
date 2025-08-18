@@ -73,6 +73,7 @@ ogel <- R6Class(
         library(magrittr)
         library(dplyr)
         library(data.table)
+        library(stringr)
       })
       self$workspace <- workspace
       self$tag <- tag
