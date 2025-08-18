@@ -22,6 +22,24 @@ ogel <- R6Class(
       }else{
         stop('Can not set meta.data, it is a read only field')
       }
+    },
+    fig_dir = function(value){
+      if(missing(value)){
+        fig_path <- file.path(self$path, 'figs')
+        if(!dir.exists(fig_path)) dir.create(fig_path, recursive = T)
+        fig_path
+      }else{
+        stop('Can not set fig_dir, it is build using self$path and figs')
+      }
+    },
+    watermark_dir = function(value){
+      if(missing(value)){
+        watermark_path <- file.path(self$path, 'watermark')
+        if(!dir.exists(watermark_path)) dir.create(watermark_path, recursive = T)
+        watermark_path
+      }else{
+        stop('Can not set watermark_dir, it is build using self$path and watermark')
+      }
     }
   ),
   public = list(

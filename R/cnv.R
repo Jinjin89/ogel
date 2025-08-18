@@ -209,8 +209,7 @@ ogel$set('public', 'plot_infercnv', function(
     plot_chr_scale = FALSE,
     chr_lengths = NULL,
     k_obs_groups = 1,
-    contig_cex = 1,
-    plot_probabilities = TRUE
+    contig_cex = 1
 ) {
     
     if (is.null(self$analysis$infercnv)) {
@@ -220,7 +219,13 @@ ogel$set('public', 'plot_infercnv', function(
     infercnv_obj <- self$analysis$infercnv
     
     if (is.null(out_dir)) {
-        out_dir <- infercnv_obj@settings$args$out_dir
+        # Use default path since infercnv object structure varies
+        out_dir <- file.path(self$path, "analysis", "infercnv")
+    }
+    
+    # Ensure output directory exists
+    if (!dir.exists(out_dir)) {
+        dir.create(out_dir, recursive = TRUE)
     }
     
     self$say("Plotting InferCNV results")
@@ -239,8 +244,7 @@ ogel$set('public', 'plot_infercnv', function(
         plot_chr_scale = plot_chr_scale,
         chr_lengths = chr_lengths,
         k_obs_groups = k_obs_groups,
-        contig_cex = contig_cex,
-        plot_probabilities = plot_probabilities
+        contig_cex = contig_cex
     )
     
     self$say(paste("Plot saved to:", file.path(out_dir, paste0(output_filename, ".", output_format))))
@@ -262,22 +266,39 @@ ogel$set('public', 'extract_cnv_regions', function(
     infercnv_obj <- self$analysis$infercnv
     
     if (is.null(output_dir)) {
-        output_dir <- infercnv_obj@settings$args$out_dir
+        # Use default path since infercnv object structure varies
+        output_dir <- file.path(self$path, "analysis", "infercnv")
+    }
+    
+    # Ensure output directory exists
+    if (!dir.exists(output_dir)) {
+        dir.create(output_dir, recursive = TRUE)
     }
     
     self$say("Extracting CNV regions")
     
-    # Extract CNV regions
-    if (region_method == "HMM_CNV_predictions") {
-        if ("HMM_CNV_predictions" %in% names(infercnv_obj@tumor_subclusters)) {
-            cnv_regions <- infercnv_obj@tumor_subclusters$HMM_CNV_predictions
+    # Extract CNV regions with error handling for different object structures
+    tryCatch({
+        if (region_method == "HMM_CNV_predictions") {
+            if (!is.null(infercnv_obj@tumor_subclusters) && 
+                "HMM_CNV_predictions" %in% names(infercnv_obj@tumor_subclusters)) {
+                cnv_regions <- infercnv_obj@tumor_subclusters$HMM_CNV_predictions
+            } else {
+                self$say("Warning: HMM predictions not found, using expression matrix")
+                cnv_regions <- infercnv_obj@expr.data
+            }
         } else {
-            self$say("Warning: HMM predictions not found, using expression matrix")
             cnv_regions <- infercnv_obj@expr.data
         }
-    } else {
-        cnv_regions <- infercnv_obj@expr.data
-    }
+    }, error = function(e) {
+        self$say("Warning: Could not access expected slots, trying alternative access methods")
+        # Fallback to main expression data
+        if (!is.null(infercnv_obj@expr.data)) {
+            cnv_regions <- infercnv_obj@expr.data
+        } else {
+            stop("Could not access CNV data from infercnv object")
+        }
+    })
     
     # Convert to data frame for easier handling
     cnv_df <- as.data.frame(as.matrix(cnv_regions))
@@ -359,6 +380,245 @@ ogel$set('public', 'summarize_cnv', function(
     self$say(paste("Summary dimensions:", nrow(cnv_summary), "genes x", ncol(cnv_summary), "groups/conditions"))
     
     return(cnv_summary)
+})
+
+ogel$set('public', 'plot_cnv_downsample', function(
+    n_cells = 3000,
+    k_obs_groups = 3,
+    output_filename = "infercnv_downsample",
+    output_format = "pdf",
+    out_dir = NULL,
+    cluster_by_groups = TRUE,
+    cluster_references = TRUE,
+    plot_chr_scale = FALSE,
+    x.center = 1,
+    x.range = "auto",
+    png_res = 300,
+    useRaster = TRUE
+) {
+    
+    if (is.null(self$analysis$infercnv)) {
+        stop("No InferCNV results found. Run infercnv() first.")
+    }
+    
+    if (is.null(out_dir)) {
+        out_dir <- file.path(self$path, "analysis", "infercnv")
+    }
+    
+    if (!dir.exists(out_dir)) {
+        dir.create(out_dir, recursive = TRUE)
+    }
+    
+    self$say("Creating downsampled InferCNV plot")
+    self$say(paste("Downsampling to", n_cells, "cells for visualization"))
+    
+    # Downsample the infercnv object
+    infercnv_sample <- infercnv::sample_object(self$analysis$infercnv, n_cells = n_cells)
+    
+    # Plot the downsampled data
+    infercnv::plot_cnv(
+        infercnv_sample,
+        k_obs_groups = k_obs_groups,
+        cluster_by_groups = cluster_by_groups,
+        cluster_references = cluster_references,
+        plot_chr_scale = plot_chr_scale,
+        out_dir = out_dir,
+        x.center = x.center,
+        x.range = x.range,
+        output_filename = output_filename,
+        output_format = output_format,
+        png_res = png_res,
+        useRaster = useRaster
+    )
+    
+    self$say(paste("Downsampled plot saved as:", file.path(out_dir, paste0(output_filename, ".", output_format))))
+    
+    return(infercnv_sample)
+})
+
+ogel$set('public', 'infer_malignant_cells', function(
+    top_percent = 0.05,
+    score_threshold = 0.003,
+    cor_threshold = 0.15,
+    use_downsample = FALSE,
+    n_sample_cells = 3000,
+    plot_results = TRUE,
+    plot_heatmap = TRUE,
+    n_test_cells = 500,
+    n_test_genes = 1000,
+    out_dir = NULL
+) {
+    
+    if (is.null(self$analysis$infercnv)) {
+        stop("No InferCNV results found. Run infercnv() first.")
+    }
+    
+    if (is.null(out_dir)) {
+        out_dir <- file.path(self$path, "analysis", "infercnv")
+    }
+    
+    if (!dir.exists(out_dir)) {
+        dir.create(out_dir, recursive = TRUE)
+    }
+    
+    self$say("Inferring malignant cells using CNV patterns")
+    self$say(paste("Parameters: top_percent =", top_percent, "score_threshold =", score_threshold, "cor_threshold =", cor_threshold))
+    
+    # Choose which infercnv object to use
+    if (use_downsample) {
+        self$say(paste("Using downsampled data with", n_sample_cells, "cells"))
+        infercnv_obj <- infercnv::sample_object(self$analysis$infercnv, n_cells = n_sample_cells)
+    } else {
+        self$say("Using full dataset")
+        infercnv_obj <- self$analysis$infercnv
+    }
+    
+    # Get cell indices for tumor and normal cells
+    if (length(infercnv_obj@observation_grouped_cell_indices) == 0) {
+        stop("No observation groups found in InferCNV object")
+    }
+    if (length(infercnv_obj@reference_grouped_cell_indices) == 0) {
+        stop("No reference groups found in InferCNV object")
+    }
+    
+    # Get the first observation and reference groups
+    tumor_cell_indices <- infercnv_obj@observation_grouped_cell_indices[[1]]
+    normal_cell_indices <- infercnv_obj@reference_grouped_cell_indices[[1]]
+    
+    # Extract expression data
+    obs <- infercnv_obj@expr.data[, tumor_cell_indices]
+    ref <- infercnv_obj@expr.data[, normal_cell_indices]
+    
+    self$say(paste("Analyzing", ncol(obs), "tumor cells and", ncol(ref), "reference cells"))
+    
+    # Calculate CNV scores (deviation from 1.0)
+    cnv_obs <- colMeans((obs - 1)^2)
+    cnv_ref <- colMeans((ref - 1)^2)
+    
+    # Identify top tumor cells based on CNV score
+    n_top_cells <- max(1, floor(length(cnv_obs) * top_percent))
+    cell_top <- names(sort(cnv_obs, decreasing = TRUE))[1:n_top_cells]
+    
+    self$say(paste("Using top", n_top_cells, "cells (", top_percent*100, "%) as reference for correlation"))
+    
+    # Calculate reference profile from top cells
+    if (length(cell_top) > 1) {
+        cnv_top <- rowMeans(obs[, cell_top])
+    } else {
+        cnv_top <- obs[, cell_top]
+    }
+    
+    # Calculate correlation with top tumor cells
+    cor_obs <- apply(obs, 2, function(x) cor(x, cnv_top))
+    cor_ref <- apply(ref, 2, function(x) cor(x, cnv_top))
+    
+    # Create results data frame
+    cnv_results <- data.frame(
+        score = c(cnv_obs, cnv_ref),
+        cor = c(cor_obs, cor_ref),
+        tissue = c(rep("tumor", length(cor_obs)), rep("normal", length(cor_ref))),
+        stringsAsFactors = FALSE
+    )
+    rownames(cnv_results) <- c(names(cnv_obs), names(cnv_ref))
+    
+    # Classify malignant cells
+    cnv_results$type <- "Not Malignant"
+    cnv_results$type[cnv_results$cor > cor_threshold | cnv_results$score > score_threshold] <- "Malignant"
+    cnv_results$type[cnv_results$tissue == "normal"] <- "Not Malignant"  # Force normal cells to be non-malignant
+    
+    # Summary statistics
+    malignant_count <- sum(cnv_results$type == "Malignant" & cnv_results$tissue == "tumor")
+    total_tumor <- sum(cnv_results$tissue == "tumor")
+    malignant_pct <- round((malignant_count / total_tumor) * 100, 1)
+    
+    self$say(paste("Results:", malignant_count, "out of", total_tumor, "tumor cells classified as malignant (", malignant_pct, "%)"))
+    
+    # Plot results if requested
+    if (plot_results) {
+        suppressMessages({
+            library(ggplot2)
+            library(dplyr)
+        })
+        
+        # Score vs correlation plot
+        p1 <- cnv_results %>%
+            ggplot(aes(score, cor)) +
+            geom_point(aes(color = tissue), size = 0.5, alpha = 0.5) +
+            geom_vline(xintercept = score_threshold, lty = "dashed") +
+            geom_hline(yintercept = cor_threshold, lty = "dashed") +
+            labs(title = "CNV Score vs Correlation with Top Tumor Cells",
+                 x = "CNV Score", y = "Correlation") +
+            theme_minimal()
+        
+        # Malignant classification plot
+        p2 <- cnv_results %>%
+            ggplot(aes(score, cor)) +
+            geom_point(aes(color = type), size = 0.5, alpha = 0.5) +
+            geom_vline(xintercept = score_threshold, lty = "dashed") +
+            geom_hline(yintercept = cor_threshold, lty = "dashed") +
+            scale_color_manual(values = c("Not Malignant" = "#8DD3C7", "Malignant" = "red")) +
+            labs(title = "Malignant Cell Classification",
+                 x = "CNV Score", y = "Correlation") +
+            theme_minimal()
+        
+        # Save plots
+        ggsave(file.path(out_dir, "malignant_cells_score_correlation.pdf"), p1, width = 6, height = 5)
+        ggsave(file.path(out_dir, "malignant_cells_classification.pdf"), p2, width = 6, height = 5)
+        
+        self$say("Plots saved to output directory")
+    }
+    
+    # Create heatmap if requested
+    if (plot_heatmap && !is.null(infercnv_obj@gene_order)) {
+        suppressMessages({
+            library(ComplexHeatmap)
+        })
+        
+        # Sample cells and genes for heatmap
+        tumor_cells <- rownames(cnv_results)[cnv_results$tissue == "tumor"]
+        set.seed(123)
+        test_cells <- sample(tumor_cells, min(n_test_cells, length(tumor_cells)))
+        set.seed(123)
+        test_genes <- sample(rownames(infercnv_obj@gene_order), min(n_test_genes, nrow(infercnv_obj@gene_order)))
+        
+        # Create heatmap
+        ht <- t(infercnv_obj@expr.data[test_genes, test_cells]) %>%
+            Heatmap(
+                name = "CNV",
+                column_split = infercnv_obj@gene_order[test_genes, "chr"],
+                cluster_columns = TRUE,
+                cluster_column_slices = FALSE,
+                show_column_names = FALSE,
+                show_column_dend = FALSE,
+                show_row_names = FALSE,
+                show_row_dend = FALSE,
+                cluster_row_slices = FALSE,
+                right_annotation = rowAnnotation(
+                    tissue = cnv_results[test_cells, "tissue"],
+                    malignant = cnv_results[test_cells, "type"],
+                    col = list(
+                        tissue = c(tumor = "royalblue"),
+                        malignant = structure(c("#8DD3C7", "red"),
+                                            names = c("Not Malignant", "Malignant"))
+                    )
+                ),
+                row_split = cnv_results[test_cells, "type"]
+            )
+        
+        # Save heatmap
+        pdf(file.path(out_dir, "malignant_cells_heatmap.pdf"), width = 12, height = 8)
+        draw(ht)
+        dev.off()
+        
+        self$say("Heatmap saved to output directory")
+    }
+    
+    # Save results
+    results_file <- file.path(out_dir, "malignant_cells_annotation.txt")
+    write.table(cnv_results, results_file, sep = "\t", quote = FALSE, row.names = TRUE, col.names = TRUE)
+    self$say(paste("Results saved to:", results_file))
+    
+    return(cnv_results)
 })
 
 # 
