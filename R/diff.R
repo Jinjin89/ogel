@@ -32,6 +32,7 @@ ogel$set('public','diff_wilcoxauc',function(group_by,..., assay_use='RNA',force=
 
 ogel$set('public','diff_plot_volcano',function(results_name,group_show,feature_col = 'feature',logFC_cutoff = 0.25, pval_cutoff = 0.05, 
                                                top_n = 8, feature_include = NULL,
+                                               feature_remove = NULL, feature_remove_pattern = NULL,
                                                direction = c("both", "y", "x"), label_size = 3,
                                                maxup_add = 1, maxlower_add = 1){
   message('volcano plot from wilcoxauc for: ', results_name)
@@ -62,22 +63,46 @@ ogel$set('public','diff_plot_volcano',function(results_name,group_show,feature_c
   # Replace zero p-values
   padj_replace <- input_degs %>% dplyr::filter(padj > 0) %>% dplyr::pull(padj) %>% min
   input_degs$padj <- ifelse(input_degs$padj == 0, padj_replace, input_degs$padj)
-  
+  input_degs$feature <- input_degs[[feature_col]]
   # Get top markers
   markers_top <- input_degs %>% 
     dplyr::filter(p_sig == "Up") %>% 
-    dplyr::arrange(dplyr::desc(abs(logFC))) %>% 
-    dplyr::mutate(i = 1:dplyr::n()) %>% 
-    dplyr::mutate(feature = .[[feature_col]]) %>%
-    dplyr::mutate(labels = ifelse(i <= top_n | feature %in% feature_include, feature, NA)) 
-    
+    dplyr::arrange(dplyr::desc(abs(logFC))) 
+  if(length(feature_remove) > 0){
+    markers_top <- markers_top %>% 
+      dplyr::filter(!feature %in% feature_remove)
+  }
+  
+  if(length(feature_remove_pattern) > 0){
+    markers_top <- markers_top %>% 
+      dplyr::filter(!str_detect(feature,feature_remove_pattern[1]))
+  }
+  if(nrow(markers_top) >0){
+    markers_top <- 
+      markers_top %>% 
+      dplyr::mutate(i = 1:dplyr::n()) %>% 
+      dplyr::mutate(labels = ifelse(i <= top_n | feature %in% feature_include, feature, NA)) 
+  }
+  
   
   markers_down <- input_degs %>% 
     dplyr::filter(p_sig == "Down") %>% 
-    dplyr::arrange(dplyr::desc(abs(logFC))) %>% 
-    dplyr::mutate(i = 1:dplyr::n()) %>% 
-    dplyr::mutate(feature = .[[feature_col]]) %>%
-    dplyr::mutate(labels = ifelse(i <= top_n | feature %in% feature_include, feature, NA))
+    dplyr::arrange(dplyr::desc(abs(logFC)))
+  if(length(feature_remove) > 0){
+    markers_down <- markers_down %>% 
+      dplyr::filter(!feature %in% feature_remove)
+  }
+  
+  if(length(feature_remove_pattern) > 0){
+    markers_down <- markers_down %>% 
+      dplyr::filter(!str_detect(feature,feature_remove_pattern[1]))
+  }
+  if(nrow(markers_down) >0){
+    markers_down <- 
+      markers_down %>% 
+      dplyr::mutate(i = 1:dplyr::n()) %>% 
+      dplyr::mutate(labels = ifelse(i <= top_n | feature %in% feature_include, feature, NA))
+  }
   
   # Create volcano plot
   p <- input_degs %>% 
@@ -88,8 +113,13 @@ ogel$set('public','diff_plot_volcano',function(results_name,group_show,feature_c
     ggplot2::geom_hline(yintercept = -log10(pval_cutoff), color = "gray", lty = "dashed") +
     ggplot2::scale_color_manual(values = c('Down' = 'blue', 'N.S.' = 'gray', 'Up' = 'red')) +
     ggplot2::theme_minimal() +
-    ggplot2::labs(x = "log2 Fold Change", y = "-log10(adjusted p-value)", color = "Significance") +
-    ggrepel::geom_label_repel(
+    ggplot2::theme(
+      text = ggplot2::element_text(family = self$plot_config$fontfamily, size = self$plot_config$fontsize)
+    ) +
+    ggplot2::labs(x = "log2 Fold Change", y = "-log10(adjusted p-value)", color = "Significance")
+  
+  if(nrow(markers_top) >0){
+    p <- p + ggrepel::geom_label_repel(
       data = markers_top %>% dplyr::filter(logFC > 0) %>% tidyr::drop_na(labels),
       ggplot2::aes(label = labels),
       segment.color = 'gray',
@@ -98,18 +128,21 @@ ogel$set('public','diff_plot_volcano',function(results_name,group_show,feature_c
       max.overlaps = Inf,
       direction = direction[1],
       vjust = 0
-    ) +
-    ggrepel::geom_label_repel(
-      data = markers_down %>% tidyr::drop_na(labels),
-      ggplot2::aes(label = labels),
-      segment.color = 'gray',
-      color = 'blue',
-      size = label_size,
-      max.overlaps = Inf,
-      direction = direction[1],
-      vjust = 0
     )
-  
+  }
+  if(nrow(markers_down) > 0){
+    p <- p  +
+      ggrepel::geom_label_repel(
+        data = markers_down %>% tidyr::drop_na(labels),
+        ggplot2::aes(label = labels),
+        segment.color = 'gray',
+        color = 'blue',
+        size = label_size,
+        max.overlaps = Inf,
+        direction = direction[1],
+        vjust = 0
+      )
+  }
   return(p)
 })
 
@@ -319,7 +352,8 @@ ogel$set('public','diff_enrich_gsea',function(
 
 ogel$set('public','diff_enrich_ora',function(
     results_name,enrich_res_name = results_name, top = 100,diff_padj_cutoff=0.01,
-    group_show= NULL,db_name = c('hallmark','kegg','go'),logFC = 'logFC',
+    group_show= NULL,db_name = c('hallmark','kegg','go'),
+    logFC = 'logFC',logFC_zero_point = 0,
     feature = 'feature',pvalueCutoff = 1,return_enrich = F,force = F){
   stopifnot(all(db_name %in% names(self$db)))
   db <- self$db[db_name]
@@ -347,9 +381,19 @@ ogel$set('public','diff_enrich_ora',function(
       self$sep_line()
       cat("Enrich for: ",each_group,'\n')
       # 1) get the genes for supplied groups
-      input_degs <- diff_res %>% dplyr::filter(group == each_group) %>% 
-        dplyr::filter(padj < diff_padj_cutoff)
-      if(top >0){
+      input_degs <- diff_res %>% 
+        dplyr::filter(group == each_group) %>% 
+        dplyr::filter(padj < diff_padj_cutoff) 
+      # 2) filter
+      if(top > 0 && nrow(input_degs) > 0){
+        input_degs <- input_degs %>% 
+          dplyr::filter(!!as.name(logFC) > logFC_zero_point)
+      }else{
+        input_degs <- input_degs %>% 
+          dplyr::filter(!!as.name(logFC) < logFC_zero_point)
+      }
+      
+      if(top >0 && nrow(input_degs) > 0){
         input_degs <- 
           input_degs %>% 
           dplyr::arrange(dplyr::desc(!!as.name(logFC))) %>% 
@@ -378,10 +422,10 @@ ogel$set('public','diff_enrich_ora',function(
 })
 
 ogel$set('public','diff_top_features',function(results_name,top = 5,
-  by_what = 'pct_change',pvalue_use = 'padj',
-  min_pct_in = 20,
-  filter_weird = F,
-  pvalue_cutoff = 0.01){
+                                               by_what = 'pct_change',pvalue_use = 'padj',
+                                               min_pct_in = 20,
+                                               filter_weird = F,
+                                               pvalue_cutoff = 0.01){
   diff_table_by_wilcoxauc <- self$analysis$wilcoxauc[[results_name]] %>% 
     dplyr::filter(pct_in > min_pct_in)
   # This function return a list of genes
@@ -410,7 +454,7 @@ ogel$set("public",'diff_plot_hm', function(features, group_by = self$celltype,da
   dta <- self$get_data(data_use)
   Idents(dta) <- group_by
   set.seed(1)
-
+  
   dta <- subset(x = dta, downsample = 500)
   
   unique_features <- unique(features) %>% dplyr::intersect(rownames(dta))
@@ -483,17 +527,17 @@ ogel$set("public",'diff_plot_hm', function(features, group_by = self$celltype,da
 
 
 ogel$set('public','diff_plot_dot',function(
-  features,
-  group_by = self$celltype,
-  left_annotation_color = NULL,
-  dot_size_scale = 5,
-  scale_min = -1,
-  scale_max = 1,
-  scale_colors = c("#2166ac", "white", "#b2182b"),
-  # legend
-  fill_label = 'Average Expression',
-  size_label = 'Percent Expressed',
-  data_use = 'data'
+    features,
+    group_by = self$celltype,
+    left_annotation_color = NULL,
+    dot_size_scale = 5,
+    scale_min = -1,
+    scale_max = 1,
+    scale_colors = c("#2166ac", "white", "#b2182b"),
+    # legend
+    fill_label = 'Average Expression',
+    size_label = 'Percent Expressed',
+    data_use = 'data'
 ) {
   # Load required packages
   requireNamespace("ggplot2", quietly = TRUE)
@@ -538,6 +582,7 @@ ogel$set('public','diff_plot_dot',function(
     ) +
     theme_minimal() +
     theme(
+      text = element_text(family = self$plot_config$fontfamily, size = self$plot_config$fontsize),
       axis.text.x = element_text(angle = 45, hjust = 1),
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank(),

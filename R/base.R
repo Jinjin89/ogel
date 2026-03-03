@@ -4,7 +4,9 @@ ogel <- R6Class(
   'ogel',
   private = list(
     R_DIR = this.path::this.dir(),
-    DB_DIR = file.path(dirname(this.path::this.dir()),"db")
+    DB_DIR = file.path(dirname(this.path::this.dir()),"db"),
+    custom_fig_dir = NULL,
+    custom_watermark_dir = NULL
   ),
   active = list(
     path = function(value){
@@ -25,20 +27,30 @@ ogel <- R6Class(
     },
     fig_dir = function(value){
       if(missing(value)){
-        fig_path <- file.path(self$path, 'figs')
+        # Use custom path if set, otherwise default
+        if(!is.null(private$custom_fig_dir)) {
+          fig_path <- private$custom_fig_dir
+        } else {
+          fig_path <- file.path(self$path, 'figs')
+        }
         if(!dir.exists(fig_path)) dir.create(fig_path, recursive = T)
         fig_path
       }else{
-        stop('Can not set fig_dir, it is build using self$path and figs')
+        stop('Can not set fig_dir directly, use set_fig_dir() method instead')
       }
     },
     watermark_dir = function(value){
       if(missing(value)){
-        watermark_path <- file.path(self$path, 'watermark')
+        # Use custom path if set, otherwise default
+        if(!is.null(private$custom_watermark_dir)) {
+          watermark_path <- private$custom_watermark_dir
+        } else {
+          watermark_path <- file.path(self$path, 'watermark')
+        }
         if(!dir.exists(watermark_path)) dir.create(watermark_path, recursive = T)
         watermark_path
       }else{
-        stop('Can not set watermark_dir, it is build using self$path and watermark')
+        stop('Can not set watermark_dir directly, use set_watermark_dir() method instead')
       }
     }
   ),
@@ -56,8 +68,46 @@ ogel <- R6Class(
     analysis = list(),
     dl = list(),
     params = list(),
+    plot_config = list(),
     db = list(),
     funs = list(),
+    
+    # Setup plot defaults - simple plot configuration
+    setup_plot_defaults = function(auto_watermark = TRUE, fig_dir = NULL, watermark_dir = NULL, plot = TRUE, fontfamily = "ArialMT", fontsize = 14, ensure_dirs = FALSE) {
+      # Set directories if provided
+      if(!is.null(fig_dir)) {
+        if(!dir.exists(fig_dir)) {
+          dir.create(fig_dir, recursive = TRUE)
+          message("Created fig directory: ", fig_dir)
+        }
+        private$custom_fig_dir <- fig_dir
+      }
+      if(!is.null(watermark_dir)) {
+        if(!dir.exists(watermark_dir)) {
+          dir.create(watermark_dir, recursive = TRUE)
+          message("Created watermark directory: ", watermark_dir)
+        }
+        private$custom_watermark_dir <- watermark_dir
+      }
+      
+      # Auto-create required directories when ensure_dirs is TRUE
+      if(ensure_dirs) {
+        # Trigger creation of fig_dir by accessing the active field
+        fig_path <- self$fig_dir
+        # Trigger creation of watermark_dir by accessing the active field  
+        watermark_path <- self$watermark_dir
+      }
+      
+      # Set plot config values
+      self$plot_config <- list(
+        auto_watermark = auto_watermark,
+        plot = plot,
+        fontfamily = fontfamily,
+        fontsize = fontsize
+      )
+      
+      invisible(self)
+    },
     
     # Initialize method with celltype and group arguments
     initialize = function(workspace, tag,data=NULL,celltype = NULL, group = NULL, threads = 16,verbose = TRUE, log_file = NULL) {
@@ -96,6 +146,7 @@ ogel <- R6Class(
         self$log_file <- NULL
       }
       
+      
       # params
       self$params <- list(
         data_name = 'data.qs',
@@ -103,6 +154,10 @@ ogel <- R6Class(
         res_folder = NULL,
         print_size = TRUE
       )
+      
+      # Initialize plot config with defaults
+      self$setup_plot_defaults(ensure_dirs = FALSE)
+      
       if(!dir.exists(self$path)) {
         message("creating folder: ",self$path)
         dir.create(self$path, recursive = TRUE)
@@ -278,6 +333,62 @@ ogel$set("public","get_analysis_size",function(){
 
 ogel$set("public","get_data_size",function(){
   self$get_size('data')
+})
+
+# Directory setting functions
+ogel$set('public','set_fig_dir',function(path = NULL){
+  if(is.null(path)) {
+    private$custom_fig_dir <- NULL
+    self$say("Fig directory reset to default")
+  } else {
+    if(!dir.exists(path)) {
+      dir.create(path, recursive = TRUE)
+      self$say(paste("Created fig directory:", path))
+    }
+    private$custom_fig_dir <- path
+    self$say(paste("Fig directory set to:", path))
+  }
+  invisible(self)
+})
+
+ogel$set('public','set_watermark_dir',function(path = NULL){
+  if(is.null(path)) {
+    private$custom_watermark_dir <- NULL
+    self$say("Watermark directory reset to default")
+  } else {
+    if(!dir.exists(path)) {
+      dir.create(path, recursive = TRUE)
+      self$say(paste("Created watermark directory:", path))
+    }
+    private$custom_watermark_dir <- path
+    self$say(paste("Watermark directory set to:", path))
+  }
+  invisible(self)
+})
+
+# Plot configuration methods
+ogel$set('public','set_plot_config',function(fontfamily = NULL, fontsize = NULL, auto_watermark = NULL, plot = NULL){
+  if(!is.null(fontfamily)) {
+    self$plot_config$fontfamily <- fontfamily
+    self$say(paste("Font family set to:", fontfamily))
+  }
+  if(!is.null(fontsize)) {
+    self$plot_config$fontsize <- fontsize
+    self$say(paste("Font size set to:", fontsize))
+  }
+  if(!is.null(auto_watermark)) {
+    self$plot_config$auto_watermark <- auto_watermark
+    self$say(paste("Auto watermark set to:", auto_watermark))
+  }
+  if(!is.null(plot)) {
+    self$plot_config$plot <- plot
+    self$say(paste("Plot setting set to:", plot))
+  }
+  invisible(self)
+})
+
+ogel$set('public','get_plot_config',function(){
+  return(self$plot_config)
 })
 
 

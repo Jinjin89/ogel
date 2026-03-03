@@ -7,44 +7,46 @@ ogel$set('public','sep_line',function(){
   cat('----------------------------------------\n')
 })
 
-ogel$set('public','add_watermarker',function(imgpath,text="百奥智汇",color="#696969",out_path=NULL,fig_type="png"){
-  if(is.null(out_path)) {
-    out_path <- self$watermark_dir
-  }
+ogel$set('public','add_watermarker',function(imgpath, text="百奥智汇", color="#696969", fig_type="png"){
   library(magick)
   library(stringr)
   library(parallel)
   
   self$say(paste("Starting watermark process for:", basename(imgpath)))
   
-  # Auto-add .png extension if no extension provided
+  # Step 1: Auto-add .png extension if no extension provided
   if(!grepl("\\.", basename(imgpath))) {
     imgpath <- paste0(imgpath, ".png")
     self$say("No extension detected, added .png extension")
   }
   
-  # Check if image exists, if not try fig_dir
-  if(!file.exists(imgpath)) {
+  # Step 2: Check if file exists at provided path
+  if(file.exists(imgpath)) {
+    self$say("Image found at provided path")
+  } else {
     self$say(paste("Image not found at:", imgpath))
-    alt_path <- file.path(self$fig_dir, basename(imgpath))
-    self$say(paste("Searching in fig_dir:", alt_path))
+    
+    # Step 3: Try to find basename in fig_dir
+    img_basename <- basename(imgpath)
+    alt_path <- file.path(self$fig_dir, img_basename)
+    self$say(paste("Searching for basename in fig_dir:", alt_path))
+    
     if(file.exists(alt_path)) {
       imgpath <- alt_path
-      self$say("Image found in fig_dir")
+      self$say("Image found in fig_dir using basename")
     } else {
       stop(paste("Image not found in either location:", imgpath, "or", alt_path))
     }
-  } else {
-    self$say("Image found at specified path")
   }
   
   imgpath <- normalizePath(imgpath)
   img_filename <- basename(imgpath)
-  out <- file.path(out_path, img_filename)
+  # Always output to watermark_dir
+  out <- file.path(self$watermark_dir, img_filename)
   
   # Create output directory if it doesn't exist
-  if (!dir.exists(out_path)) {
-    dir.create(out_path, recursive = TRUE)
+  if (!dir.exists(self$watermark_dir)) {
+    dir.create(self$watermark_dir, recursive = TRUE)
   }
   
   img <- image_read(imgpath)
@@ -168,29 +170,46 @@ ogel$set('public','add_watermarker',function(imgpath,text="百奥智汇",color="
   invisible(self)
 })
 
-ogel$set('public','save_fig',function(fig, file_path, width = 5, height = 5, dpi = 300, fontfamily = NULL, out_dir = NULL, auto_watermark = TRUE){
-  if(is.null(out_dir)) {
-    out_dir <- self$fig_dir
+ogel$set('public','save_fig',function(fig, fig_name, width = 5, height = 5, dpi = 300, fontfamily = NULL){
+  # Ensure fig_name is just a name, not a path
+  if(grepl("/", fig_name) || grepl("\\\\", fig_name)) {
+    stop("fig_name should be just a filename, not a path. Use set_fig_dir() to set the directory.")
   }
-  # Use out_dir for the file path
-  full_path <- file.path(out_dir, basename(file_path))
+  
+  # Remove .pdf or .png extensions if present to avoid double extensions
+  fig_name <- gsub("\\.(pdf|png)$", "", fig_name, ignore.case = TRUE)
+  
+  # Always use the configured fig_dir
+  full_path <- file.path(self$fig_dir, fig_name)
+  
+  self$say(paste("Saving figure:", fig_name))
+  self$say(paste("Output directory:", self$fig_dir))
+  self$say(paste("Dimensions:", width, "x", height, "inches, DPI:", dpi))
+  
   dev_off_safe <- function() {
-    devs <- dev.list()
-    if (length(devs) > 0) dev.off(devs[length(devs)])
+    tryCatch(dev.off(), error = function(e) NULL)
   }
   
   print_with_font <- function(fig, fontfamily) {
     if (!is.null(fontfamily)) {
       library(grid)
+      # Check if we're in a grid context and handle accordingly
+      grid.newpage()
       pushViewport(viewport(gp = gpar(fontfamily = fontfamily)))
-      if (inherits(fig, "Heatmap")) {
-        draw(fig, newpage = FALSE)
-      } else {
-        print(fig)
-      }
-      popViewport()
+      tryCatch({
+        if (inherits(fig, c("Heatmap", "HeatmapList"))) {
+          draw(fig, newpage = FALSE)
+        } else {
+          print(fig)
+        }
+      }, finally = {
+        # Safely pop viewport
+        if (grid::current.viewport()$name != "ROOT") {
+          popViewport()
+        }
+      })
     } else {
-      if (inherits(fig, "Heatmap")) {
+      if (inherits(fig, c("Heatmap", "HeatmapList"))) {
         draw(fig)
       } else {
         print(fig)
@@ -200,20 +219,26 @@ ogel$set('public','save_fig',function(fig, file_path, width = 5, height = 5, dpi
   
   # Save as PDF
   self$say("Generating PDF...")
-  pdf(paste0(full_path,'.pdf'), width = width, height = height)
-  print_with_font(fig, fontfamily)
-  dev_off_safe()
+  tryCatch({
+    pdf(paste0(full_path,'.pdf'), width = width, height = height)
+    print_with_font(fig, fontfamily)
+  }, finally = {
+    dev_off_safe()
+  })
   
   # Save as PNG
   self$say("Generating PNG...")
-  png(paste0(full_path,'.png'), width = width, height = height, units = 'in', res = dpi)
-  print_with_font(fig, fontfamily)
-  dev_off_safe()
+  tryCatch({
+    png(paste0(full_path,'.png'), width = width, height = height, units = 'in', res = dpi)
+    print_with_font(fig, fontfamily)
+  }, finally = {
+    dev_off_safe()
+  })
   
   self$say(paste("Figure saved as:", paste0(full_path, ".pdf"), "and", paste0(full_path, ".png")))
   
   # Auto watermark if enabled
-  if(auto_watermark) {
+  if(self$plot_config$auto_watermark) {
     self$say("Auto watermark enabled - applying watermarks...")
     
     # Watermark both PNG and PDF if they exist
@@ -230,5 +255,9 @@ ogel$set('public','save_fig',function(fig, file_path, width = 5, height = 5, dpi
     self$say("Auto watermarking completed")
   }
   
-  invisible(self)
+  if(self$plot_config$plot) {
+    print(fig)
+  }
+  
+  invisible(fig)
 })
